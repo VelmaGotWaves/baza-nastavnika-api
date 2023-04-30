@@ -2,34 +2,34 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const professorSchema = new Schema({
-    firstname: {
+    ime: {
         type: String,
         required: true
     },
-    lastname: {
+    prezime: {
         type: String,
         required: true
     },
-    title:{
+    titula:{
         type: String,
         required: true
     },
-    scientificResearch:[{
+    oblastiIstrazivanja:[{
         type:String
     }],
-    labaratories:[{
+    katedre:[{
         type:String
     }],
-    scientificProjects:[{
+    publikacije:[{ 
         type:String
     }],
-    significantPublications:[{ 
-        type:String
+    projekti:[{
+        type: Schema.Types.ObjectId,
+        ref:'Project'
     }],
-    tags:[{ 
+     tagovi:[{ 
         type:String
     }]
-    
 });
 
 module.exports = mongoose.model('Professor', professorSchema);

@@ -1,5 +1,6 @@
 const Professor = require('../model/Professor');
-
+const KATEDRE = require('../data/katedre');
+const OBLASTI_ISTRAZIVANJA = require('../data/oblastiIstrazivanja');
 const getAllProfessors = async (req, res) => {
     const professors = await Professor.find();
     if (!professors) return res.status(204).json({ 'message': 'No professor found.' });
@@ -7,20 +8,25 @@ const getAllProfessors = async (req, res) => {
 }
 
 const createNewProfessor = async (req, res) => {
-    if (!req?.body?.firstname || !req?.body?.lastname ) {
+    if (!req?.body?.ime || !req?.body?.prezime ) {
         return res.status(400).json({ 'message': 'First and last names are required' });
     }
-
+    if(req?.body?.katedre.length != 0 && !req?.body?.katedre.every(val => KATEDRE.katedre.includes(val))){
+        return res.status(400).json({'message': 'Greska pri unosu katedra'})
+    }
+    if(req?.body?.oblastiIstrazivanja.length != 0 && !req?.body?.oblastiIstrazivanja.every(val => OBLASTI_ISTRAZIVANJA.oblastiIstrazivanja.includes(val))){
+        return res.status(400).json({'message': 'Greska pri unosu oblasti istrazivanja'})
+    }
     try {
         const result = await Professor.create({
-            firstname: req.body.firstname,
-            lastname: req.body.lastname,
-            title: req.body.title,
-            scientificResearch: req.body.scientificResearch,
-            labaratories: req.body.labaratories,
-            scientificProjects:req.body.scientificProjects,
-            significantPublications: req.body.significantPublications,
-            tags: req.body.tags
+            ime: req.body.ime,
+            prezime: req.body.prezime,
+            titula: req.body.titula,
+            oblastiIstrazivanja: req.body.oblastiIstrazivanja,
+            katedre: req.body.katedre,
+            publikacije:req.body.publikacije,
+            projekti: req.body.projekti,
+            tagovi: req.body.tagovi
         });
 
         res.status(201).json(result);
@@ -38,16 +44,22 @@ const updateProfessor = async (req, res) => {
     }
     const professor = await Professor.findOne({ _id: req.body.id }).exec();
     if (!professor) {
-        return res.status(204).json({ "message": `No professor matches ID ${req.body.id}.` });
+        return res.status(404).json({ "message": `No professor matches ID ${req.body.id}.` });
     }
-    if (req.body?.firstname) professor.firstname = req.body.firstname;
-    if (req.body?.lastname) professor.lastname = req.body.lastname;
-    if (req.body?.title) professor.title = req.body.title;
-    if (req.body?.scientificResearch) professor.scientificResearch = req.body.scientificResearch;
-    if (req.body?.labaratories) professor.labaratories = req.body.labaratories;
-    if (req.body?.significantPublications) professor.significantPublications = req.body.significantPublications;
-    if (req.body?.scientificProjects) professor.scientificProjects = req.body.scientificProjects;
-    if (req.body?.tags) professor.tags = req.body.tags;
+    if(req?.body?.katedre.length != 0 && !req?.body?.katedre.every(val => KATEDRE.katedre.includes(val))){
+        return res.status(400).json({'message': 'Greska pri unosu katedra'})
+    }
+    if(req?.body?.oblastiIstrazivanja.length != 0 && !req?.body?.oblastiIstrazivanja.every(val => OBLASTI_ISTRAZIVANJA.oblastiIstrazivanja.includes(val))){
+        return res.status(400).json({'message': 'Greska pri unosu oblasti istrazivanja'})
+    }
+    if (req.body?.ime) professor.ime = req.body.ime;
+    if (req.body?.prezime) professor.prezime = req.body.prezime;
+    if (req.body?.titula) professor.titula = req.body.titula;
+    if (req.body?.oblastiIstrazivanja) professor.oblastiIstrazivanja = req.body.oblastiIstrazivanja;
+    if (req.body?.katedre) professor.katedre = req.body.katedre;
+    if (req.body?.publikacije) professor.publikacije = req.body.publikacije;
+    if (req.body?.projekti) professor.projekti = req.body.projekti;
+    if (req.body?.tagovi) professor.tagovi = req.body.tagovi;
 
     const result = await professor.save();
     res.json(result);

@@ -40,7 +40,7 @@ app.use('/', express.static(path.join(__dirname, '/public')));
 
 // routes
 app.use('/', require('./routes/root'));
-app.use('/register', require('./routes/register'));
+// app.use('/register', require('./routes/register'));
 app.use('/auth', require('./routes/auth'));
 app.use('/refresh', require('./routes/refresh'));
 app.use('/logout', require('./routes/logout'));
@@ -49,6 +49,9 @@ app.use('/logout', require('./routes/logout'));
 app.use(verifyJWT);
 app.use('/users', require('./routes/api/users'));
 app.use('/professors', require('./routes/api/professors'));
+app.use('/projects', require('./routes/api/projects'));
+app.use('/register', require('./routes/register'));
+
 
 app.all('*', (req, res) => {
     res.status(404);
