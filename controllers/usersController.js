@@ -13,12 +13,16 @@ const getAllUsers = async (req, res) => {
 
 const deleteUser = async (req, res) => {
     if (!req?.body?.id) return res.status(400).json({ "message": 'User ID required' });
+    console.log(req)
     if(req.body.id.length != 24){
         return res.status(204).json({ "message": `No user matches ID ${req.body.id}.` });
     }
     const user = await User.findOne({ _id: req.body.id }).exec();
     if (!user) {
         return res.status(404).json({ 'message': `User ID ${req.body.id} not found` });
+    }
+    if(user.username == req.body.user){
+        return res.status(401).json({'message': `User cannot delete themself`});
     }
     const result = await user.deleteOne({ _id: req.body.id });
     res.json(result);
