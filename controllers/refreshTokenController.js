@@ -11,13 +11,16 @@ const handleRefreshToken = async (req, res) => {
     const foundUser = await User.findOne({ refreshTokenCookie }).exec();
     if (!foundUser) return res.sendStatus(403); //Forbidden 
     // evaluate jwt 
+    //  prvi if je da li 
     if (foundUser.persistLogin) {
         jwt.verify(
             refreshTokenCookie,
             process.env.REFRESH_TOKEN_SECRET,
             async (err, decoded) => {
                 const match = await bcrypt.compare(foundUser.username,decoded.username);
-                console.log('provera match')
+                // console.log(new Date(decoded.exp * 1000)) datum kada prolazi, oduzmi datume 
+                const calculatedExpiresIn = Math.floor((decoded.exp * 1000 - (new Date()).getTime())/1000);
+               
                 if (err || !match) return res.sendStatus(403);
                 const roles = Object.values(foundUser.roles);
                 const accessToken = jwt.sign(
@@ -28,21 +31,21 @@ const handleRefreshToken = async (req, res) => {
                         }
                     },
                     process.env.ACCESS_TOKEN_SECRET,
-                    { expiresIn: '5m' }
+                    { expiresIn: '10m' }
                 );
                 const hashedUsername1 = await bcrypt.hash(foundUser.username, 10);
 
                 const newRefreshTokenCookie = jwt.sign(
                     { "username": hashedUsername1 },
                     process.env.REFRESH_TOKEN_SECRET,
-                    { expiresIn: '1d'}
+                    { expiresIn: calculatedExpiresIn}
                 );
                 const hashedUsername2 = await bcrypt.hash(foundUser.username, 10);
 
                 const refreshTokenApp = jwt.sign(
                     { "username": hashedUsername2 },
                     process.env.REFRESH_TOKEN_SECRET,
-                    { expiresIn: '1d'}
+                    { expiresIn: calculatedExpiresIn}
                 );
 
                 const user = foundUser.username;
@@ -53,21 +56,26 @@ const handleRefreshToken = async (req, res) => {
                 const result = await foundUser.save();
                 // console.log(result);
 
-                res.cookie('jwt', newRefreshTokenCookie, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 24 * 60 * 60 * 1000, overwrite: true });
+                res.cookie('jwt', newRefreshTokenCookie, { httpOnly: true, secure: true, sameSite: 'None', maxAge: calculatedExpiresIn*1000, overwrite: true });
 
                 // Send authorization roles and access token to user
-                res.json({ user, roles, accessToken, refreshTokenApp });
+                return res.json({ user, roles, accessToken, refreshTokenApp });
             }
         );
     }
     else if(req.body?.refreshTokenApp){
         jwt.verify(
+            // ok big brain idea, da bi ostao ulogovan dok se browser ne ugasi, stavi refresh token app u cookie session storage i eto bum tras ananas, takodje stavi svuda datetime.now - 10d za novi refresh
             req.body.refreshTokenApp,
             process.env.REFRESH_TOKEN_SECRET,
             async (err, decoded) => {
                 const match = await bcrypt.compare(foundUser.username,decoded.username);
                 // mozda sad trebam da nadjem usera po body.refreshtokenapp , / mislmi da sam to sredio sa trecom stavkom u ifu
                 // console.log('provera match')
+
+                const calculatedExpiresIn = Math.floor((decoded.exp * 1000 - (new Date()).getTime())/1000);
+
+
                 if (err || !match ) return res.sendStatus(403);
                 if(foundUser.refreshTokenApp!=req.body.refreshTokenApp) return res.sendStatus(498);
                 const roles = Object.values(foundUser.roles);
@@ -79,7 +87,7 @@ const handleRefreshToken = async (req, res) => {
                         }
                     },
                     process.env.ACCESS_TOKEN_SECRET,
-                    { expiresIn: '5m' }
+                    { expiresIn: '10m' }
                 );
                 
                 const hashedUsername2 = await bcrypt.hash(foundUser.username, 10);
@@ -87,7 +95,7 @@ const handleRefreshToken = async (req, res) => {
                 const refreshTokenApp = jwt.sign(
                     { "username": hashedUsername2 },
                     process.env.REFRESH_TOKEN_SECRET,
-                    { expiresIn: '1d'}
+                    { expiresIn: calculatedExpiresIn}
                 );
 
                 const user = foundUser.username;
@@ -98,10 +106,10 @@ const handleRefreshToken = async (req, res) => {
                 const result = await foundUser.save();
                 console.log(result);
 
-                res.cookie('jwt', req.body.refreshTokenApp, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 24 * 60 * 60 * 1000, overwrite: true });
+                res.cookie('jwt', req.body.refreshTokenApp, { httpOnly: true, secure: true, sameSite: 'None', maxAge: calculatedExpiresIn*1000, overwrite: true });
 
                 // Send authorization roles and access token to user
-                res.json({ user, roles, accessToken, refreshTokenApp });
+                return res.json({ user, roles, accessToken, refreshTokenApp });
             }
         );
     } else{
@@ -113,3 +121,4 @@ const handleRefreshToken = async (req, res) => {
 }
 
 module.exports = { handleRefreshToken }
+// kasnije dodaj u niz refresh tokene, ako neko koristi stariji od poslednja dva odmah ga logout iz svih uredjaja

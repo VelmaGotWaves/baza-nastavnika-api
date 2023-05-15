@@ -1,4 +1,21 @@
 const Project = require('../model/Project');
+const Professor = require('../model/Professor');
+const path = require('path');
+
+const parentDir = path.dirname(__dirname);
+
+const dozvoljeneVrsteProjekata = ['medjunarodni', 'domaci', 'interni'];
+
+function convertType(value){
+    if (value === "undefined") return undefined;
+    if (value === "null") return null;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    var v = Number (value);
+    return isNaN (v) ? value : v;
+};
+
+var ObjectId = require('mongoose').Types.ObjectId;
 
 const getAllProjects = async (req, res) => {
     const projects = await Project.find();
@@ -10,25 +27,133 @@ const createNewProject = async (req, res) => {
     if (!req?.body?.nazivProjekta) {
         return res.status(400).json({ 'message': 'Project name is required' });
     }
+    if (!dozvoljeneVrsteProjekata.includes(req?.body?.vrstaProjekta)) {
+        return res.status(400).json({ 'message': 'Vrsta projekta nije u formatu' });
+    }
+    // TODO MORAS DA PROMENIS SA PNG NA PRAVI TIP FAJLA ,, MORAS ERROR HANDLING OVDE DA ODRADIS BOZE, MORAS U gitignorujes uploads,, brda error handleovanja i ifova i ostale stvari sa objectId kad baci error znas sam
+    let aneksi = undefined;
+    if(Array.isArray(req?.files?.filesAneksi)){
+        aneksi = req?.files?.filesAneksi?.map(file => file.name);
+    } else if (req?.files?.filesAneksi){
+        aneksi = req?.files?.filesAneksi?.name;
+    }
+    
 
+    let datePlaniraniPocetak= undefined;
     try {
-        const result = await Project.create({
+        const myDate = new Date(req?.body?.planiraniPocetak);
+        if (isNaN(myDate.getTime())) {
+          throw new Error('Invalid date planiraniPocetak');
+        }
+        datePlaniraniPocetak = myDate;
+      } catch (error) {
+        console.log('Invalid date planiraniPocetak');
+      }
+    let datePlaniraniZavrsetak= undefined;
+    try {
+        const myDate = new Date(req?.body?.planiraniZavrsetak);
+        if (isNaN(myDate.getTime())) {
+          throw new Error('Invalid date planiraniZavrsetak');
+        }
+        datePlaniraniZavrsetak = myDate;
+      } catch (error) {
+        console.log('Invalid date planiraniZavrsetak');
+      }
+    let konvertovanRukovodilac = convertType(req.body.rukovodilac);
+    let chekiraniRukovodilac = (typeof konvertovanRukovodilac == "string" && (konvertovanRukovodilac == new ObjectId(konvertovanRukovodilac)))? konvertovanRukovodilac : undefined;
+    let konvertovanAdministrator = convertType(req.body.administrator);
+    let chekiraniAdministrator = (typeof konvertovanAdministrator == "string" && (konvertovanAdministrator == new ObjectId(konvertovanAdministrator)))? konvertovanAdministrator : undefined;
+
+    let chekiraniClanoviProjektnogTima = JSON.parse(req.body?.clanoviProjektnogTima).map(clan => {
+        let konvertovanClan = convertType(clan);
+        if(typeof konvertovanClan == "string" && (konvertovanClan == new ObjectId(konvertovanClan))){
+            return konvertovanClan;
+        } else { return undefined}
+    })
+    
+    console.log(req?.files);
+
+    let result = '';
+    try {
+        result = await Project.create({
             nazivProjekta: req.body.nazivProjekta,
             nazivPrograma: req.body.nazivPrograma,
-            referentniBroj: req.body.referentniBroj
+            vrstaProjekta: req.body.vrstaProjekta,
+            programFinansiranja: req.body.programFinansiranja,
+            referentniBroj: req.body.referentniBroj,
+            interniBroj: req.body.interniBroj,
+            rukovodilac: chekiraniRukovodilac,
+            administrator: chekiraniAdministrator,
+            profitniCentar: req.body.profitniCentar,
+            planiraniPocetak: datePlaniraniPocetak,
+            planiraniZavrsetak: datePlaniraniZavrsetak,
+            trajanje: req.body.trajanje,
+            ukupanBudzet: req.body.ukupanBudzet,
+            budzetZaFon: req.body.budzetZaFon,
+            opis: req.body.opis,
+            ciljevi: req.body.ciljevi,
+            partnerskeInstitucije: JSON.parse(req.body.partnerskeInstitucije),
+            clanoviProjektnogTima: chekiraniClanoviProjektnogTima,
+            website: req.body.website,
+            kljucneReci: JSON.parse(req.body.kljucneReci),
+            ugovor: req?.files?.fileUgovor?.name,
+            aneksi: aneksi,
+
         });
 
-        res.status(201).json(result);
     } catch (err) {
         console.error(err);
+        return;
     }
+
+
+
+    if (!req?.files) {
+        return res.json({ msg: 'No file uploaded', result });
+    }
+    if (req?.files?.fileUgovor) {
+        const fileUgovor = req.files.fileUgovor;
+
+        fileUgovor.mv(`${parentDir}/uploads/projects/${result._id}/ugovor/${fileUgovor.name}`, err => {
+            if (err) {
+                console.error(err);
+                return res.status(500).send(err);
+            }
+            console.log(`uspesno sacuvan ${fileUgovor.name}`)
+        });
+    }
+
+    if (Array.isArray(req?.files?.filesAneksi)) {
+        req.files.filesAneksi.forEach(aneks => {
+            aneks.mv(`${parentDir}/uploads/projects/${result._id}/aneksi/${aneks.name}`, err => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).send(err);
+                }
+                console.log(`uspesno sacuvan ${aneks.name}`)
+            });
+        });
+    } else if(req?.files?.filesAneksi){
+        const fileAneks = req.files.filesAneksi;
+
+        fileAneks.mv(`${parentDir}/uploads/projects/${result._id}/ugovor/${fileAneks.name}`, err => {
+            if (err) {
+                console.error(err);
+                return res.status(500).send(err);
+            }
+            console.log(`uspesno sacuvan ${fileAneks.name}`)
+        });
+    }
+
+
+    res.json(result);
 }
 
 const updateProject = async (req, res) => {
     if (!req?.body?.id) {
         return res.status(400).json({ 'message': 'ID parameter is required.' });
     }
-    if(req.body.id.length != 24){
+    if (req.body.id.length != 24) {
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
     const project = await Project.findOne({ _id: req.body.id }).exec();
@@ -38,14 +163,14 @@ const updateProject = async (req, res) => {
     if (req.body?.nazivProjekta) project.nazivProjekta = req.body.nazivProjekta;
     if (req.body?.nazivPrograma) project.nazivPrograma = req.body.nazivPrograma;
     if (req.body?.referentniBroj) project.referentniBroj = req.body.referentniBroj;
-    
+
     const result = await project.save();
     res.json(result);
 }
 
 const deleteProject = async (req, res) => {
     if (!req?.body?.id) return res.status(400).json({ 'message': 'Project ID required.' });
-    if(req.body.id.length != 24){
+    if (req.body.id.length != 24) {
         // console.log('nije24')
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
@@ -53,13 +178,19 @@ const deleteProject = async (req, res) => {
     if (!project) {
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
+    try {
+        const remove = await Professor.updateMany({ projekti: { $elemMatch: { $eq: req.body.id } } }, { $pull: { projekti: { $eq: req.body.id } } });
+    } catch (error) {
+        console.log(error)
+    }
+
     const result = await project.deleteOne(); //{ _id: req.body.id }
     res.json(result);
 }
 
 const getProject = async (req, res) => {
     if (!req?.params?.id) return res.status(400).json({ 'message': 'Project ID required.' });
-    if(req.body.id.length != 24){
+    if (req.body.id.length != 24) {
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
     const project = await Project.findOne({ _id: req.params.id }).exec().catch(console.error);

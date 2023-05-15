@@ -22,19 +22,19 @@ const handleLogin = async (req, res) => {
                 }
             },
             process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: '5m' }
+            { expiresIn: '10m' }
         );
         const hashedUsername1 = await bcrypt.hash(foundUser.username, 10);
         const refreshTokenCookie = jwt.sign(
             { "username": hashedUsername1 },
             process.env.REFRESH_TOKEN_SECRET,
-            { expiresIn: '1d'}
+            { expiresIn: '10d'}
         );
         const hashedUsername2 = await bcrypt.hash(foundUser.username, 10);
         const refreshTokenApp = jwt.sign(
             { "username": hashedUsername2 },
             process.env.REFRESH_TOKEN_SECRET,
-            { expiresIn: '1d'}
+            { expiresIn: '10d'}
         );
 
         foundUser.persistLogin = persist;
@@ -43,7 +43,7 @@ const handleLogin = async (req, res) => {
         const result = await foundUser.save();
         // console.log(result);
         
-        res.cookie('jwt', refreshTokenCookie, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 24 * 60 * 60 * 1000, overwrite: true });
+        res.cookie('jwt', refreshTokenCookie, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 10 * 24 * 60 * 60 * 1000, overwrite: true });
 
         res.json({ user, roles, accessToken, refreshTokenApp });
 
