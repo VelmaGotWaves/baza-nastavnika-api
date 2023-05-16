@@ -17,6 +17,7 @@ const createNewProfessor = async (req, res) => {
     if(req?.body?.oblastiIstrazivanja.length != 0 && !req?.body?.oblastiIstrazivanja.every(val => OBLASTI_ISTRAZIVANJA.oblastiIstrazivanja.includes(val))){
         return res.status(400).json({'message': 'Greska pri unosu oblasti istrazivanja'})
     }
+    // mozda ovde error handling , ako projekti nisu objectid
     try {
         const result = await Professor.create({
             ime: req.body.ime,
@@ -77,6 +78,8 @@ const deleteProfessor = async (req, res) => {
     }
     const result = await professor.deleteOne(); //{ _id: req.body.id }
     res.json(result);
+    console.log(result)
+    // ovde ces da dodas obrisi u svakom projektu gde se nalazi result._id
 }
 
 const getProfessor = async (req, res) => {

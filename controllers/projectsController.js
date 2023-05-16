@@ -1,6 +1,21 @@
 const Project = require('../model/Project');
 const Professor = require('../model/Professor');
 const path = require('path');
+const fs = require('fs');
+
+const deleteFolderRecursive = function(path) {
+    if (fs.existsSync(path)) {
+      fs.readdirSync(path).forEach(function(file) {
+        const curPath = path + "/" + file;
+        if (fs.lstatSync(curPath).isDirectory()) { // recurse
+          deleteFolderRecursive(curPath);
+        } else { // delete file
+          fs.unlinkSync(curPath);
+        }
+      });
+      fs.rmdirSync(path);
+    }
+  };
 
 const parentDir = path.dirname(__dirname);
 
@@ -70,8 +85,11 @@ const createNewProject = async (req, res) => {
             return konvertovanClan;
         } else { return undefined}
     })
-    
+    if(!req?.files){
+        console.log("req.files je :")
     console.log(req?.files);
+
+    }
 
     let result = '';
     try {
@@ -152,8 +170,8 @@ const createNewProject = async (req, res) => {
 const updateProject = async (req, res) => {
     if (!req?.body?.id) {
         return res.status(400).json({ 'message': 'ID parameter is required.' });
-    }
-    if (req.body.id.length != 24) {
+    }req.body.id == new ObjectId(req.body.id)
+    if (req.body.id != new ObjectId(req.body.id)) {
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
     const project = await Project.findOne({ _id: req.body.id }).exec();
@@ -166,11 +184,12 @@ const updateProject = async (req, res) => {
 
     const result = await project.save();
     res.json(result);
+    // ovde ces da zapamtis obrisane profesore i obrises projekte iz njihovog polja, nakon toga ces da ubacujes iz result._id i result.administrator, rukovodilac, clanovi... itd
 }
 
 const deleteProject = async (req, res) => {
     if (!req?.body?.id) return res.status(400).json({ 'message': 'Project ID required.' });
-    if (req.body.id.length != 24) {
+    if (req.body.id != new ObjectId(req.body.id)) {
         // console.log('nije24')
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
@@ -178,19 +197,27 @@ const deleteProject = async (req, res) => {
     if (!project) {
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
-    try {
-        const remove = await Professor.updateMany({ projekti: { $elemMatch: { $eq: req.body.id } } }, { $pull: { projekti: { $eq: req.body.id } } });
-    } catch (error) {
-        console.log(error)
-    }
+    // try {
+    //     const remove = await Professor.updateMany({ projekti: { $elemMatch: { $eq: req.body.id } } }, { $pull: { projekti: { $eq: req.body.id } } });
+    // } catch (error) {
+    //     console.log(error)
+    // }
 
     const result = await project.deleteOne(); //{ _id: req.body.id }
     res.json(result);
+
+    deleteFolderRecursive(`${parentDir}/uploads/projects/${result._id}`);
+
+    try {
+        const remove = await Professor.updateMany({ projekti: { $elemMatch: { $eq: result._id } } }, { $pull: { projekti: { $eq: result._id } } });
+    } catch (error) {
+        console.log(error)
+    }
 }
 
 const getProject = async (req, res) => {
     if (!req?.params?.id) return res.status(400).json({ 'message': 'Project ID required.' });
-    if (req.body.id.length != 24) {
+    if (req.body.id != new ObjectId(req.body.id)) {
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
     const project = await Project.findOne({ _id: req.params.id }).exec().catch(console.error);
