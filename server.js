@@ -49,6 +49,9 @@ app.use(verifyJWT);
 app.use('/users', require('./routes/api/users'));
 app.use('/professors', require('./routes/api/professors'));
 app.use('/projects', require('./routes/api/projects'));
+app.use('/ugovor', require('./routes/api/ugovor'));
+app.use('/aneksi', require('./routes/api/aneksi'));
+
 app.use('/register', require('./routes/register'));
 
 
