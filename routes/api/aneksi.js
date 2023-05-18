@@ -16,4 +16,4 @@ router.route('/:id/:name')
     .delete(verifyRoles(ROLES_LIST.Admin, ROLES_LIST.Editor), aneksiController.deleteAneks);
 module.exports = router;
 
-// PREBACI SVE CIGANE SA PARAMS NA JEBENI BODY U PICKU MATERINU, moze idalje da bude /:id samo nemoj da ga iskoristis u kodu i to je sve jbt
+// PREBACI SVE CIGANE SA PARAMS NA JEBENI BODY U PICKU MATERINU, moze idalje da bude /:id samo nemoj da ga iskoristis u kodu i to je sve jbt TODO

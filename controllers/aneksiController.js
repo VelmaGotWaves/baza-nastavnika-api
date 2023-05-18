@@ -196,7 +196,7 @@ const getAneks = async (req, res) => {
 }
 
 const deleteAneks = async (req, res) => {
-  // mozes umesto params u body da promenis ako te ne mrzi, hvala
+  // mozes umesto params u body da promenis ako te ne mrzi, hvala TODO
   if (!req?.params?.id) return res.status(400).json({ 'message': 'Project ID required.' });
   if (req.params.id != new ObjectId(req.params.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
   if (!req.params?.name) return res.status(400).json({ 'message': 'Name of the file is required.' });

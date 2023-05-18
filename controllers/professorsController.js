@@ -1,6 +1,8 @@
 const Professor = require('../model/Professor');
 const KATEDRE = require('../data/katedre');
 const OBLASTI_ISTRAZIVANJA = require('../data/oblastiIstrazivanja');
+var ObjectId = require('mongoose').Types.ObjectId;
+
 const getAllProfessors = async (req, res) => {
     const professors = await Professor.find();
     if (!professors) return res.status(204).json({ 'message': 'No professor found.' });
@@ -65,7 +67,7 @@ const updateProfessor = async (req, res) => {
     const result = await professor.save();
     res.json(result);
 }
-
+// TODO promeni svuda if objectId, takodje promeni svuda menjanje projekta i promeni svuda vezu sa projektima i promeni u model baze
 const deleteProfessor = async (req, res) => {
     if (!req?.body?.id) return res.status(400).json({ 'message': 'Professor ID required.' });
     if(req.body.id.length != 24){

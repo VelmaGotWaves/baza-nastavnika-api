@@ -5,7 +5,7 @@ const fs = require('fs');
 const parentDir = path.dirname(__dirname);
 
 var ObjectId = require('mongoose').Types.ObjectId;
-// ove dve funkcije napravi u middlware koji ces da importujes iz middleware foldera, ali kasnije
+// ove dve funkcije napravi u middlware koji ces da importujes iz middleware foldera, ali kasnije TODO
 function fileExtensionLimiter(allowedExtArray) {
   const files = req.files
 
@@ -57,7 +57,7 @@ function fileSizeLimiter() {
 
 const getUgovor = async (req, res) => {
   // ovaj kod slepo kucan, kao ostatak u ovom fajlu
-  // moras da testiras sta ako se obrise pa se ponovo doda, pa se update, pa se obrise, pa se update
+  // moras da testiras sta ako se obrise pa se ponovo doda, pa se update, pa se obrise, pa se update TODO
   if (!req?.params?.id) return res.status(400).json({ 'message': 'Projekat ID je neophodan.' });
   if (req?.params?.id != new ObjectId(req?.params?.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
 
