@@ -1,7 +1,7 @@
 const Project = require('../model/Project');
 const path = require('path');
 const fs = require('fs');
-const archiver = requre('archiver');
+const archiver = require('archiver');
 const parentDir = path.dirname(__dirname);
 
 var ObjectId = require('mongoose').Types.ObjectId;
