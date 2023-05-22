@@ -6,15 +6,15 @@ const parentDir = path.dirname(__dirname);
 
 var ObjectId = require('mongoose').Types.ObjectId;
 // ove dve funkcije napravi u middlware koji ces da importujes iz middleware foldera, ali kasnije TODO
-function fileExtensionLimiter(allowedExtArray) {
+function fileExtensionLimiter(allowedExtArray, req, res) {
   const files = req.files
 
   const fileExtensions = []
   Object.keys(files).forEach(key => {
     if (Array.isArray(files[key])) {
-      files[key].forEach(file => fileExtensions.push(path.extname(file.name)))
+      files[key].forEach(file => fileExtensions.push(path.extname(file.name).toLowerCase()))
     } else {
-      fileExtensions.push(path.extname(files[key].name))
+      fileExtensions.push(path.extname(files[key].name).toLowerCase())
     }
 
   })
@@ -22,15 +22,16 @@ function fileExtensionLimiter(allowedExtArray) {
 
   if (!allowed) {
     const message = `Upload failed. Only ${allowedExtArray.toString()} files allowed.`.replaceAll(",", ", ");
-
-    return res.status(422).json({ status: "error", message });
+    res.status(422).json({ status: "error", message });
+    return false;
   }
+  return true;
 }
-function fileSizeLimiter() {
+function fileSizeLimiter(req, res) {
   const MB = 5;
   const FILE_SIZE_LIMIT = MB * 1024 * 1024;
   const filesOverLimit = [];
-  const files =req.files;
+  const files = req.files;
 
   // Which files are over the limit?
   Object.keys(files).forEach(key => {
@@ -49,10 +50,11 @@ function fileSizeLimiter() {
   if (filesOverLimit.length) {
 
     const message = `Upload failed. ${filesOverLimit.toString()} su preko ogranicenja od ${MB} MB.`;
-
-    return res.status(413).json({ status: "error", message });
+    res.status(413).json({ status: "error", message });
+    return false;
 
   }
+  return true;
 }
 
 const getUgovor = async (req, res) => {
@@ -65,13 +67,14 @@ const getUgovor = async (req, res) => {
     root: path.join(parentDir, "uploads", "projects", req?.params?.id, "ugovor")
   };
 
-  const project = Project.findOne({ _id: req.params.id });
+  const project = await Project.findOne({ _id: req.params.id });
   if (project.ugovor) {
+    res.setHeader("Content-Disposition",`attachment: filename=${project.ugovor}`)
     res.sendFile(project.ugovor, options, function (err) {
       if (err) {
         return res.sendStatus(404).json({ "message": "Greska pri nalazenju fajla ugovora" });
       } else {
-        console.log('Sent:', fileName);
+        console.log('Sent:', project.ugovor);
       }
     });
   } else {
@@ -90,12 +93,12 @@ const updateUgovor = async (req, res) => {
     // mozes u ovom slucaju umesto return da samo obrises vec postojeci, ali za to vec postiji delete tkd mozda ne.
 
   } else {
-    fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf", ".xls"]);
-    fileSizeLimiter();
+    if (!fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf", ".xls"], req, res)) return;
+    if (!fileSizeLimiter(req, res)) return;
     // nisi ni testirao ova dva koda...
   }
 
-  const project = Project.findOne({ _id: req.params.id });
+  const project = await Project.findOne({ _id: req.params.id });
   if (project.ugovor) {
     fs.unlink(`${parentDir}/uploads/projects/${req.params.id}/ugovor/${project.ugovor}`, (err) => {
       if (err) {
@@ -129,7 +132,7 @@ const deleteUgovor = async (req, res) => {
   if (!req?.params?.id) return res.status(400).json({ 'message': 'Projekat ID je neophodan.' });
   if (req?.params?.id != new ObjectId(req?.params?.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
 
-  const project = Project.findOne({ _id: req.params.id });
+  const project = await Project.findOne({ _id: req.params.id });
   if (project.ugovor) {
     fs.unlink(`${parentDir}/uploads/projects/${req.params.id}/ugovor/${project.ugovor}`, async (err) => {
       if (err) {

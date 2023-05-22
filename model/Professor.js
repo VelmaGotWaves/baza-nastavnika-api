@@ -10,25 +10,31 @@ const professorSchema = new Schema({
         type: String,
         required: true
     },
-    titula:{
+    titula: {
         type: String,
         required: true
     },
-    oblastiIstrazivanja:[{
-        type:String
+    oblastiIstrazivanja: [{
+        type: String
     }],
-    katedre:[{
-        type:String
+    katedre: [{
+        type: String
     }],
-    publikacije:[{ 
-        type:String
+    publikacije: [{
+        type: String
     }],
-    projekti:[{
-        type: Schema.Types.ObjectId,
-        ref:'Project'
+    projekti: [{
+        projekatId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Project'
+        },
+        uloga: {
+            type: String
+        }
+
     }],
-     tagovi:[{ 
-        type:String
+    tagovi: [{
+        type: String
     }]
 });
 

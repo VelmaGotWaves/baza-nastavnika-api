@@ -20,15 +20,15 @@ const deleteFolderRecursive = function (path) {
   }
 };
 // ove dve funkcije napravi u middlware koji ces da importujes iz middleware foldera, ali kasnije
-function fileExtensionLimiter(allowedExtArray) {
+function fileExtensionLimiter(allowedExtArray, req, res) {
   const files = req.files
 
   const fileExtensions = []
   Object.keys(files).forEach(key => {
     if (Array.isArray(files[key])) {
-      files[key].forEach(file => fileExtensions.push(path.extname(file.name)))
+      files[key].forEach(file => fileExtensions.push(path.extname(file.name).toLowerCase()))
     } else {
-      fileExtensions.push(path.extname(files[key].name))
+      fileExtensions.push(path.extname(files[key].name).toLowerCase())
     }
 
   })
@@ -36,11 +36,12 @@ function fileExtensionLimiter(allowedExtArray) {
 
   if (!allowed) {
     const message = `Upload failed. Only ${allowedExtArray.toString()} files allowed.`.replaceAll(",", ", ");
-
-    return res.status(422).json({ status: "error", message });
+    res.status(422).json({ status: "error", message });
+    return false;
   }
+  return true;
 }
-function fileSizeLimiter() {
+function fileSizeLimiter(req, res) {
   const MB = 5;
   const FILE_SIZE_LIMIT = MB * 1024 * 1024;
   const filesOverLimit = [];
@@ -62,15 +63,31 @@ function fileSizeLimiter() {
   if (filesOverLimit.length) {
 
     const message = `Upload failed. ${filesOverLimit.toString()} su preko ogranicenja od ${MB} MB.`;
-
-    return res.status(413).json({ status: "error", message });
+    res.status(413).json({ status: "error", message });
+    return false;
 
   }
+  return true;
 }
+function hasDuplicateValues(array) {
+  if(Array.isArray(array)){
+      for (let i = 0; i < array.length; i++) {
+    for (let j = i + 1; j < array.length; j++) {
+      if (array[i] === array[j]) {
+        return true;
+      }
+    }
+  }
+  return false;
+  } else return false;
+  
+}
+
 
 const getAllAneksi = async (req, res) => {
   if (!req?.params?.id) return res.status(400).json({ 'message': 'Project ID required.' });
   if (req?.params?.id != new ObjectId(req?.params?.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
+
   const project = await Project.findOne({ _id: req.params.id }).exec();
   if (!project) {
     return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
@@ -80,7 +97,6 @@ const getAllAneksi = async (req, res) => {
     const files = project.aneksi.map(imeAneksa => {
       return `${parentDir}/uploads/projects/${project._id}/aneksi/${imeAneksa}`
     })
-
     const zipName = 'aneksi.zip';
     const output = fs.createWriteStream(zipName);
     const archive = archiver('zip');
@@ -93,7 +109,8 @@ const getAllAneksi = async (req, res) => {
 
       files.forEach((file) => {
         archive.file(file, { name: file.split('/').pop() });
-      });
+        
+      }); 
 
       await archive.finalize();
     } catch (error) {
@@ -109,9 +126,10 @@ const getAllAneksi = async (req, res) => {
 }
 
 const createNewAneks = async (req, res) => {
+
   if (!req?.params?.id) return res.status(400).json({ 'message': 'Project ID required.' });
   if (req?.params?.id != new ObjectId(req?.params?.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
-  const project = Project.findOne({ _id: req.params.id });
+  const project = await Project.findOne({ _id: req.params.id });
   if (!project) {
     return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
   }
@@ -129,9 +147,13 @@ const createNewAneks = async (req, res) => {
     console.log(req?.files);
     return res.sendStatus(400).json({ 'message': 'Server nije primio fajl' })
   }
+  if (aneksiImena.some(fajl => project.aneksi?.includes(fajl)) || hasDuplicateValues(aneksiImena)) {
+    return res.sendStatus(400).json({ 'message': 'Vec postoji fajl sa tim imenom' })
+  }
+  if (!fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf", ".xls"], req, res)) return;
+  if (!fileSizeLimiter(req, res)) return;
 
-  fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf", ".xls"]);
-  fileSizeLimiter();
+
 
   aneksiFajlovi.forEach(aneks => {
     aneks.mv(`${parentDir}/uploads/projects/${req.params.id}/aneksi/${aneks.name}`, err => {
@@ -173,7 +195,7 @@ const getAneks = async (req, res) => {
   if (req.params.id != new ObjectId(req.params.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
   if (!req.params?.name) return res.status(400).json({ 'message': 'Name of the file is required.' });
 
-  const project = Project.findOne({ _id: req.params.id });
+  const project = await Project.findOne({ _id: req.params.id });
   if (!project) {
     return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
   }
@@ -201,7 +223,7 @@ const deleteAneks = async (req, res) => {
   if (req.params.id != new ObjectId(req.params.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
   if (!req.params?.name) return res.status(400).json({ 'message': 'Name of the file is required.' });
 
-  const project = Project.findOne({ _id: req.params.id });
+  const project = await Project.findOne({ _id: req.params.id });
   if (!project) {
     return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
   }
@@ -215,7 +237,7 @@ const deleteAneks = async (req, res) => {
       return res.sendStatus(400).json({ 'message': `Greska pri brisanju ${req.params.id}/aneksi/${req.params.name}` })
     }
     console.log(`File ${req.params.id}/aneksi/${req.params.name} has been deleted`);
-    project.aneksi = project.aneksi.filter(aneks => aneks !=req.params.name)
+    project.aneksi = project.aneksi.filter(aneks => aneks != req.params.name)
     const result = await project.save();
     return res.json({ result });
   })

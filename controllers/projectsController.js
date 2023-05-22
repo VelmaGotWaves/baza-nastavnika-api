@@ -3,6 +3,20 @@ const Professor = require('../model/Professor');
 const path = require('path');
 const fs = require('fs');
 
+function hasDuplicateValues(array) {
+    if (Array.isArray(array)) {
+        for (let i = 0; i < array.length; i++) {
+            for (let j = i + 1; j < array.length; j++) {
+                if (array[i] === array[j]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    } else return false;
+
+}
+
 const deleteFolderRecursive = function (path) {
     if (fs.existsSync(path)) {
         fs.readdirSync(path).forEach(function (file) {
@@ -32,15 +46,15 @@ function convertType(value) {
 
 var ObjectId = require('mongoose').Types.ObjectId;
 
-function fileExtensionLimiter(allowedExtArray) {
+function fileExtensionLimiter(allowedExtArray, req, res) {
     const files = req.files
 
     const fileExtensions = []
     Object.keys(files).forEach(key => {
         if (Array.isArray(files[key])) {
-            files[key].forEach(file => fileExtensions.push(path.extname(file.name)))
+            files[key].forEach(file => fileExtensions.push(path.extname(file.name).toLowerCase()))
         } else {
-            fileExtensions.push(path.extname(files[key].name))
+            fileExtensions.push(path.extname(files[key].name).toLowerCase())
         }
 
     })
@@ -48,11 +62,12 @@ function fileExtensionLimiter(allowedExtArray) {
 
     if (!allowed) {
         const message = `Upload failed. Only ${allowedExtArray.toString()} files allowed.`.replaceAll(",", ", ");
-
-        return res.status(422).json({ status: "error", message });
+        res.status(422).json({ status: "error", message });
+        return false;
     }
+    return true;
 }
-function fileSizeLimiter() {
+function fileSizeLimiter(req, res) {
     const MB = 5;
     const FILE_SIZE_LIMIT = MB * 1024 * 1024;
     const filesOverLimit = [];
@@ -75,10 +90,11 @@ function fileSizeLimiter() {
     if (filesOverLimit.length) {
 
         const message = `Upload failed. ${filesOverLimit.toString()} su preko ogranicenja od ${MB} MB.`;
-
-        return res.status(413).json({ status: "error", message });
+        res.status(413).json({ status: "error", message });
+        return false;
 
     }
+    return true;
 }
 
 const getAllProjects = async (req, res) => {
@@ -100,7 +116,9 @@ const createNewProject = async (req, res) => {
     } else if (req?.files?.filesAneksi) {
         aneksi = req?.files?.filesAneksi?.name;
     }
-
+    if (hasDuplicateValues(aneksi)) {
+        return res.status(400).json({ 'message': 'Dva fajla aneksa nose isto ime' });
+    }
 
     let datePlaniraniPocetak = undefined;
     try {
@@ -138,9 +156,8 @@ const createNewProject = async (req, res) => {
         console.log(req?.files);
 
     } else {
-        fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf"]);
-        fileSizeLimiter();
-        // nisi ni testirao ova dva koda...
+        if (!fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf", ".xls"], req, res)) return;
+        if (!fileSizeLimiter(req, res)) return;
     }
 
     let result = '';
@@ -175,20 +192,19 @@ const createNewProject = async (req, res) => {
         console.error(err);
         return;
     }
-    
-    // da bi ovi profesori radili mora da se promeni model kod profesora i mora da se promeni na frontendu kad se pravi profesor, i kad se editiuje i svaki search po projektu TODO
-    // Professor.updateMany(
-    //     { _id: { $in: chekiraniClanoviProjektnogTima } },
-    //     { $push: { projekti: { projekatId: result._id, uloga: "Clan projektnog tima" } } }
-    // );
-    // Professor.updateOne(
-    //     { _id: chekiraniRukovodilac },
-    //     { $push: { projekti: { projekatId: result._id, uloga: "Rukovodilac" } } }
-    // );
-    // Professor.updateOne(
-    //     { _id: chekiraniAdministrator },
-    //     { $push: { projekti: { projekatId: result._id, uloga: "Administrator" } } }
-    // );
+
+    await Professor.updateMany(
+        { _id: { $in: chekiraniClanoviProjektnogTima } },
+        { $push: { projekti: { projekatId: result._id, uloga: "Clan projektnog tima" } } }
+    );
+    await Professor.updateOne(
+        { _id: chekiraniRukovodilac },
+        { $push: { projekti: { projekatId: result._id, uloga: "Rukovodilac" } } }
+    );
+    await Professor.updateOne(
+        { _id: chekiraniAdministrator },
+        { $push: { projekti: { projekatId: result._id, uloga: "Administrator" } } }
+    );
 
     if (!req?.files) {
         return res.json({ msg: 'No file uploaded', result });
@@ -247,7 +263,7 @@ const updateProject = async (req, res) => {
     if (!dozvoljeneVrsteProjekata.includes(req?.body?.vrstaProjekta)) {
         return res.status(400).json({ 'message': 'Vrsta projekta nije u formatu' });
     }
-    
+
 
     let datePlaniraniPocetak = undefined;
     try {
@@ -278,7 +294,9 @@ const updateProject = async (req, res) => {
         } else { return undefined }
     })
 
-// MORAS DA DODAS IF chekiraniAdmin je drugaciji od vec postojeceg, brises konekciju sa starim profesorom i pravis konekciju sa novim TODO
+    const stariRukovodilac = project.rukovodilac;
+    const stariAdministrator = project.administrator;
+    const stariClanoviProjektnog = project.clanoviProjektnogTima;
 
     if (req.body?.nazivProjekta) project.nazivProjekta = req.body.nazivProjekta;
     if (req.body?.nazivPrograma) project.nazivPrograma = req.body.nazivPrograma;
@@ -302,6 +320,48 @@ const updateProject = async (req, res) => {
     if (req.body?.kljucneReci) project.kljucneReci = req.body.kljucneReci;
 
     const result = await project.save();
+
+    if (stariAdministrator != result.administrator) {
+        await Professor.updateOne(
+            { _id: stariAdministrator },
+            { $pull: { projekti: { $elemMatch: { projekatId: result._id } } } }
+        )
+        // elemMatch nije potrebam moze i ovako
+        // Professor.updateOne(
+        //     { _id: req.body.rukovodilac },
+        //     { $pull: { projekti: { projekatId: result._id } } }
+        //   );
+        await Professor.updateOne(
+            { _id: result.administrator },
+            { $push: { projekti: { projekatId: result._id, uloga: "Administrator" } } }
+        )
+    }
+    if (stariRukovodilac != result.rukovodilac) {
+        await Professor.updateOne(
+            { _id: stariRukovodilac },
+            { $pull: { projekti: { $elemMatch: { projekatId: result._id } } } }
+        )
+        // elemMatch nije potrebam moze i ovako
+        // Professor.updateOne(
+        //     { _id: req.body.rukovodilac },
+        //     { $pull: { projekti: { projekatId: result._id } } }
+        //   );
+        await Professor.updateOne(
+            { _id: result.rukovodilac },
+            { $push: { projekti: { projekatId: result._id, uloga: "Rukovodilac" } } }
+        )
+    }
+    if (stariClanoviProjektnog != result.clanoviProjektnogTima) {
+        await Professor.updateMany(
+            { _id: { $in: stariClanoviProjektnog } },
+            { $pull: { projekti: { $elemMatch: { projekatId: result._id } } } }
+        )
+        await Professor.updateMany(
+            { _id: { $in: result.clanoviProjektnogTima } },
+            { $push: { projekti: { projekatId: result._id, uloga: "Clan projektnog tima" } } }
+        )
+    }
+
     res.json(result);
     // ovde ces da zapamtis obrisane profesore i obrises projekte iz njihovog polja, nakon toga ces da ubacujes iz result._id i result.administrator, rukovodilac, clanovi... itd
 }
@@ -322,8 +382,11 @@ const deleteProject = async (req, res) => {
     deleteFolderRecursive(`${parentDir}/uploads/projects/${result._id}`);
 
     try {
-        // ovde ces da promenis TODO kada promenis model profesora
-        const remove = await Professor.updateMany({ projekti: { $elemMatch: { $eq: result._id } } }, { $pull: { projekti: { $eq: result._id } } });
+
+        const remove = await Professor.updateMany(
+            { "projekti.projekatId": result._id },
+            { $pull: { projekti: { projekatId: result._id } } }
+        );
     } catch (error) {
         console.log(error)
     }
@@ -341,8 +404,6 @@ const getProject = async (req, res) => {
     }
     res.json(project);
 }
-// dodaj jos 3 rute, jednu za menjanje ugovora, jednu za dodavanje aneksa, jednu za overwritovanje aneksa
-// dodaj jos 2 rute, jednu za getovanje ugovora, jednu za getovanje aneksa, jednu za getovanje svih fajlova, to ces u drugom fajlu
 module.exports = {
     getAllProjects,
     createNewProject,
