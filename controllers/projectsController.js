@@ -62,7 +62,7 @@ function fileExtensionLimiter(allowedExtArray, req, res) {
 
     if (!allowed) {
         const message = `Upload failed. Only ${allowedExtArray.toString()} files allowed.`.replaceAll(",", ", ");
-        res.status(422).json({ status: "error", message });
+        res.status(415).json({ status: "error", message });
         return false;
     }
     return true;
@@ -99,7 +99,7 @@ function fileSizeLimiter(req, res) {
 
 const getAllProjects = async (req, res) => {
     const projects = await Project.find();
-    if (!projects) return res.status(204).json({ 'message': 'No project found.' });
+    if (!projects) return res.status(404).json({ 'message': 'No project found.' });
     res.json(projects);
 }
 
@@ -117,7 +117,7 @@ const createNewProject = async (req, res) => {
         aneksi = req?.files?.filesAneksi?.name;
     }
     if (hasDuplicateValues(aneksi)) {
-        return res.status(400).json({ 'message': 'Dva fajla aneksa nose isto ime' });
+        return res.status(409).json({ 'message': 'Dva fajla aneksa nose isto ime' });
     }
 
     let datePlaniraniPocetak = undefined;
@@ -190,7 +190,7 @@ const createNewProject = async (req, res) => {
 
     } catch (err) {
         console.error(err);
-        return;
+        return res.status(500).json({'message':'Greska pri kreiranju projekta sa poslatim podatcima'});
     }
 
     await Professor.updateMany(
@@ -249,13 +249,14 @@ const createNewProject = async (req, res) => {
 
 const updateProject = async (req, res) => {
     //ovde neces da updejtujes fajlove, zato si razdvojio fajlove od ovoga
-    if (!req?.params?.id) return res.status(400).json({ 'message': 'Project ID required.' });
+
+    if (!req?.body?.id) return res.status(400).json({ 'message': 'Project ID required.' });
     if (req.body.id != new ObjectId(req.body.id)) {
         return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
-    const project = await Project.findOne({ _id: req.params.id }).exec().catch(console.error);
+    const project = await Project.findOne({ _id: req.body.id }).exec().catch(console.error);
     if (!project) {
-        return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
+        return res.status(404).json({ "message": `No project matches ID ${req.body.id}.` });
     }
     if (!req?.body?.nazivProjekta) {
         return res.status(400).json({ 'message': 'Project name is required' });
@@ -266,27 +267,42 @@ const updateProject = async (req, res) => {
 
 
     let datePlaniraniPocetak = undefined;
-    try {
-        const myDate = new Date(req.body?.planiraniPocetak);
-        if (isNaN(myDate.getTime())) {
-            throw new Error('Invalid date planiraniPocetak');
+    if (req.body?.planiraniZavrsetak)
+        try {
+            const myDate = new Date(req.body?.planiraniPocetak);
+            if (isNaN(myDate.getTime())) {
+                throw new Error("Invalid date planiraniPocetak")
+            } else {
+                datePlaniraniPocetak = myDate;
+
+            }
+        } catch (error) {
+            console.log('Invalid date planiraniPocetak');
         }
-        datePlaniraniPocetak = myDate;
-    } catch (error) {
-        console.log('Invalid date planiraniPocetak');
-    }
     let datePlaniraniZavrsetak = undefined;
-    try {
-        const myDate = new Date(req.body?.planiraniZavrsetak);
-        if (isNaN(myDate.getTime())) {
-            throw new Error('Invalid date planiraniZavrsetak');
+    if (req.body?.planiraniZavrsetak)
+        try {
+            const myDate = new Date(req.body?.planiraniZavrsetak);
+            if (isNaN(myDate.getTime())) {
+                throw new Error("Invalid date planiraniZavrsetak")
+
+            } else {
+                datePlaniraniZavrsetak = myDate;
+
+            }
+        } catch (error) {
+            console.log('Invalid date planiraniZavrsetak');
         }
-        datePlaniraniZavrsetak = myDate;
-    } catch (error) {
-        console.log('Invalid date planiraniZavrsetak');
+    console.log(req.body?.planiraniPocetak)
+    if (req.body.rukovodilac) {
+        var chekiraniRukovodilac = req.body.rukovodilac == new ObjectId(req.body.rukovodilac) ? req.body.rukovodilac : undefined;
+
+
     }
-    let chekiraniRukovodilac = req.body.rukovodilac == new ObjectId(req.body.rukovodilac) ? req.body.rukovodilac : undefined;
-    let chekiraniAdministrator = req.body.administrator == new ObjectId(req.body.administrator) ? req.body.administrator : undefined;
+    if (req.body.administrator) {
+        var chekiraniAdministrator = req.body.administrator == new ObjectId(req.body.administrator) ? req.body.administrator : undefined;
+
+    }
 
     let chekiraniClanoviProjektnogTima = req.body?.clanoviProjektnogTima.map(clan => {
         if (typeof clan == "string" && (clan == new ObjectId(clan))) {
@@ -299,73 +315,111 @@ const updateProject = async (req, res) => {
     const stariClanoviProjektnog = project.clanoviProjektnogTima;
 
     if (req.body?.nazivProjekta) project.nazivProjekta = req.body.nazivProjekta;
-    if (req.body?.nazivPrograma) project.nazivPrograma = req.body.nazivPrograma;
+    /*if (req.body?.nazivPrograma)*/ project.nazivPrograma = req.body.nazivPrograma;
     if (req.body?.vrstaProjekta) project.vrstaProjekta = req.body.vrstaProjekta;
-    if (req.body?.programFinansiranja) project.programFinansiranja = req.body.programFinansiranja;
-    if (req.body?.referentniBroj) project.referentniBroj = req.body.referentniBroj;
-    if (req.body?.interniBroj) project.interniBroj = req.body.interniBroj;
-    if (req.body?.rukovodilac) project.rukovodilac = chekiraniRukovodilac;
-    if (req.body?.administrator) project.administrator = chekiraniAdministrator;
-    if (req.body?.profitniCentar) project.profitniCentar = req.body.profitniCentar;
-    if (req.body?.planiraniPocetak) project.planiraniPocetak = datePlaniraniPocetak;
-    if (req.body?.planiraniZavrsetak) project.planiraniZavrsetak = datePlaniraniZavrsetak;
-    if (req.body?.trajanje) project.trajanje = req.body.trajanje;
-    if (req.body?.ukupanBudzet) project.ukupanBudzet = req.body.ukupanBudzet;
-    if (req.body?.budzetZaFon) project.budzetZaFon = req.body.budzetZaFon;
-    if (req.body?.opis) project.opis = req.body.opis;
-    if (req.body?.ciljevi) project.ciljevi = req.body.ciljevi;
-    if (req.body?.partnerskeInstitucije) project.partnerskeInstitucije = req.body.partnerskeInstitucije;
-    if (req.body?.clanoviProjektnogTima) project.clanoviProjektnogTima = chekiraniClanoviProjektnogTima;
-    if (req.body?.website) project.website = req.body.website;
-    if (req.body?.kljucneReci) project.kljucneReci = req.body.kljucneReci;
+    project.programFinansiranja = req.body.programFinansiranja;
+    project.referentniBroj = req.body.referentniBroj;
+    project.interniBroj = req.body.interniBroj;
+    project.rukovodilac = chekiraniRukovodilac;
+    project.administrator = chekiraniAdministrator;
+    project.profitniCentar = req.body.profitniCentar;
+    project.planiraniPocetak = datePlaniraniPocetak;
+    project.planiraniZavrsetak = datePlaniraniZavrsetak;
+    project.trajanje = req.body.trajanje;
+    project.ukupanBudzet = req.body.ukupanBudzet;
+    project.budzetZaFon = req.body.budzetZaFon;
+    project.opis = req.body.opis;
+    project.ciljevi = req.body.ciljevi;
+    project.partnerskeInstitucije = req.body.partnerskeInstitucije;
+    project.clanoviProjektnogTima = chekiraniClanoviProjektnogTima;
+    project.website = req.body.website;
+    project.kljucneReci = req.body.kljucneReci;
 
     const result = await project.save();
+    console.log(result)
+    if (stariAdministrator != String(result.administrator)) {
+        if (String(stariAdministrator) == String(new ObjectId(stariAdministrator))) {
+            await Professor.updateOne(
+                { _id: stariAdministrator },
+                { $pull: { projekti: { projekatId: result._id, uloga: "Administrator" } } }
+            )
+        }
 
-    if (stariAdministrator != result.administrator) {
-        await Professor.updateOne(
-            { _id: stariAdministrator },
-            { $pull: { projekti: { $elemMatch: { projekatId: result._id } } } }
-        )
         // elemMatch nije potrebam moze i ovako
         // Professor.updateOne(
         //     { _id: req.body.rukovodilac },
         //     { $pull: { projekti: { projekatId: result._id } } }
         //   );
-        await Professor.updateOne(
-            { _id: result.administrator },
-            { $push: { projekti: { projekatId: result._id, uloga: "Administrator" } } }
-        )
+
+    
+        if (String(result.administrator) == String(new ObjectId(result.administrator))) {
+            await Professor.updateOne(
+                { _id: result.administrator },
+                { $push: { projekti: { projekatId: result._id, uloga: "Administrator" } } }
+            )
+        }
+
     }
-    if (stariRukovodilac != result.rukovodilac) {
-        await Professor.updateOne(
-            { _id: stariRukovodilac },
-            { $pull: { projekti: { $elemMatch: { projekatId: result._id } } } }
-        )
-        // elemMatch nije potrebam moze i ovako
-        // Professor.updateOne(
-        //     { _id: req.body.rukovodilac },
-        //     { $pull: { projekti: { projekatId: result._id } } }
-        //   );
-        await Professor.updateOne(
-            { _id: result.rukovodilac },
-            { $push: { projekti: { projekatId: result._id, uloga: "Rukovodilac" } } }
-        )
+    if (stariRukovodilac != String(result.rukovodilac)) {
+        if (stariRukovodilac == new ObjectId(stariRukovodilac)) {
+            await Professor.updateOne(
+                { _id: stariRukovodilac },
+                { $pull: { projekti: { projekatId: result._id, uloga: "Rukovodilac" } } }
+            )
+        }
+
+        // mozda moze ovako nisam sig
+        // await Professor.updateOne(
+        //     { _id: stariRukovodilac },
+        //     { $pull: { projekti: { $elemMatch: { projekatId: result._id } } } }
+        // )
+        if (String(result.rukovodilac) == String(new ObjectId(result.rukovodilac))) {
+            await Professor.updateOne(
+                { _id: result.rukovodilac },
+                { $push: { projekti: { projekatId: result._id, uloga: "Rukovodilac" } } }
+            )
+        }
+
     }
-    if (stariClanoviProjektnog != result.clanoviProjektnogTima) {
-        await Professor.updateMany(
-            { _id: { $in: stariClanoviProjektnog } },
-            { $pull: { projekti: { $elemMatch: { projekatId: result._id } } } }
-        )
-        await Professor.updateMany(
-            { _id: { $in: result.clanoviProjektnogTima } },
-            { $push: { projekti: { projekatId: result._id, uloga: "Clan projektnog tima" } } }
-        )
+  
+
+    if (!checkIfTwoArraysHaveTheSameValues(stariClanoviProjektnog, result.clanoviProjektnogTima)) {
+        console.log(stariClanoviProjektnog)
+        console.log(result.clanoviProjektnogTima)
+
+        if (stariClanoviProjektnog.every(clan => String(clan) == String(new ObjectId(clan)))) {
+            await Professor.updateMany(
+                { _id: { $in: stariClanoviProjektnog } },
+                { $pull: { projekti: { projekatId: result._id, uloga: "Clan projektnog tima" }  } }
+            )
+        }
+        if (result.clanoviProjektnogTima.every(clan => String(clan) == String(new ObjectId(clan))))
+            await Professor.updateMany(
+                { _id: { $in: result.clanoviProjektnogTima } },
+                { $push: { projekti: { projekatId: result._id, uloga: "Clan projektnog tima" } } }
+            )
     }
 
     res.json(result);
-    // ovde ces da zapamtis obrisane profesore i obrises projekte iz njihovog polja, nakon toga ces da ubacujes iz result._id i result.administrator, rukovodilac, clanovi... itd
 }
+function checkIfTwoArraysHaveTheSameValues(arr1, arr2) {
+    if (arr1 === undefined && arr2 === undefined) {
+        return true;
+    }
+    if ((arr1 === undefined && arr2 !== undefined) || (arr1 !== undefined && arr2 === undefined)) {
+        return false;
+    }
+    if (arr1.length != arr2.length) {
+        return false;
+    }
+    const sortedArr1 = arr1.sort();
+    const sortedArr2 = arr2.sort();
+    if (sortedArr1.every((el, index) => String(el) == String(sortedArr2[index]))) {
+        return true;
+    }
+    return false;
 
+}
 const deleteProject = async (req, res) => {
     if (!req?.body?.id) return res.status(400).json({ 'message': 'Project ID required.' });
     if (req.body.id != new ObjectId(req.body.id)) {

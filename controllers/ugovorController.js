@@ -22,7 +22,7 @@ function fileExtensionLimiter(allowedExtArray, req, res) {
 
   if (!allowed) {
     const message = `Upload failed. Only ${allowedExtArray.toString()} files allowed.`.replaceAll(",", ", ");
-    res.status(422).json({ status: "error", message });
+    res.status(415).json({ status: "error", message });
     return false;
   }
   return true;
@@ -68,17 +68,20 @@ const getUgovor = async (req, res) => {
   };
 
   const project = await Project.findOne({ _id: req.params.id });
+  if (!project) {
+    return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
+  }
   if (project.ugovor) {
-    res.setHeader("Content-Disposition",`attachment: filename=${project.ugovor}`)
+    res.setHeader("Content-Disposition", `attachment: filename=${project.ugovor}`)
     res.sendFile(project.ugovor, options, function (err) {
       if (err) {
-        return res.sendStatus(404).json({ "message": "Greska pri nalazenju fajla ugovora" });
+        return res.status(500).json({ "message": "Greska pri nalazenju fajla ugovora" });
       } else {
         console.log('Sent:', project.ugovor);
       }
     });
   } else {
-    return res.sendStatus(404).json({ "message": "Nedostaje fajl ugovora" });
+    return res.status(410).json({ "message": "Nedostaje fajl ugovora" });
   }
 
 }
@@ -89,24 +92,23 @@ const updateUgovor = async (req, res) => {
   if (!req?.files?.fileUgovor) {
     console.log("req.files je :")
     console.log(req?.files);
-    return res.sendStatus(400).json({ 'message': 'Server nije primio fajl' })
-    // mozes u ovom slucaju umesto return da samo obrises vec postojeci, ali za to vec postiji delete tkd mozda ne.
+    return res.status(417).json({ 'message': 'Server nije primio fajl' })
 
   } else {
     if (!fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf", ".xls"], req, res)) return;
     if (!fileSizeLimiter(req, res)) return;
-    // nisi ni testirao ova dva koda...
   }
-
   const project = await Project.findOne({ _id: req.params.id });
+  console.log(project)
   if (project.ugovor) {
-    fs.unlink(`${parentDir}/uploads/projects/${req.params.id}/ugovor/${project.ugovor}`, (err) => {
+    fs.unlink(`${parentDir}/uploads/projects/${req.params.id}/ugovor/${project.ugovor}`, async (err) => {
       if (err) {
         console.error(err);
-        return res.sendStatus(400).json({ 'message': `Greska pri brisanju ${req.params.id}/ugovor/${project.ugovor}` })
+        return res.status(500).json({ 'message': `Greska pri brisanju ${req.params.id}/ugovor/${project.ugovor}` })
       }
-      console.log(`File ${req.params.id}/ugovor/${projekta.ugovor} has been deleted`);
+      console.log(`File ${req.params.id}/ugovor/${project.ugovor} has been deleted`);
       project.ugovor = undefined;
+      console.log("project.ugovor posle delete je :" + project.ugovor)
     })
   }
 
@@ -120,12 +122,15 @@ const updateUgovor = async (req, res) => {
       return res.status(500).send(err);
     }
     console.log(`uspesno sacuvan ${fileUgovor.name}`)
-
     project.ugovor = fileUgovor.name;
+    console.log("project.ugovor posle dodavanje je : " + project.ugovor)
+    const result = await project.save();
+    console.log(result)
+    res.json(result);
 
   });
-  const result = await project.save();
-  res.json({ result });
+
+  // error je da jednostavno nece da se updejtuje , ovaj project.save() ne radi nista ocigledo iako je result tacno ono sto sam hteo on ga jebeno ne sejva
 }
 
 const deleteUgovor = async (req, res) => {
@@ -133,19 +138,22 @@ const deleteUgovor = async (req, res) => {
   if (req?.params?.id != new ObjectId(req?.params?.id)) return res.status(400).json({ 'message': 'Projekat ID nije u dobrom formatu.' });
 
   const project = await Project.findOne({ _id: req.params.id });
+  if (!project) {
+    return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
+  }
   if (project.ugovor) {
     fs.unlink(`${parentDir}/uploads/projects/${req.params.id}/ugovor/${project.ugovor}`, async (err) => {
       if (err) {
         console.error(err);
-        return res.sendStatus(400).json({ 'message': `Greska pri brisanju ${req.params.id}/ugovor/${project.ugovor}` })
+        return res.status(500).json({ 'message': `Greska pri brisanju ${req.params.id}/ugovor/${project.ugovor}` })
       }
-      console.log(`File ${req.params.id}/ugovor/${projekta.ugovor} has been deleted`);
+      console.log(`File ${req.params.id}/ugovor/${project.ugovor} has been deleted`);
       project.ugovor = undefined;
       const result = await project.save();
       return res.json({ result });
     })
   } else {
-    return res.sendStatus(404).json({ "message": "Projekat nema ugovor za brisanje" })
+    return res.status(410).json({ "message": "Projekat nema ugovor za brisanje" })
   }
 
 }
