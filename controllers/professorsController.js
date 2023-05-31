@@ -59,11 +59,11 @@ const updateProfessor = async (req, res) => {
     if (req.body?.ime) professor.ime = req.body.ime;
     if (req.body?.prezime) professor.prezime = req.body.prezime;
     if (req.body?.titula) professor.titula = req.body.titula;
-    if (req.body?.oblastiIstrazivanja) professor.oblastiIstrazivanja = req.body.oblastiIstrazivanja;
-    if (req.body?.katedre) professor.katedre = req.body.katedre;
-    if (req.body?.publikacije) professor.publikacije = req.body.publikacije;
+    professor.oblastiIstrazivanja = req.body.oblastiIstrazivanja;
+    professor.katedre = req.body.katedre;
+    professor.publikacije = req.body.publikacije;
     // if (req.body?.projekti) professor.projekti = req.body.projekti; ovo je trenutno obrisano, vrati ga kad budes hteo da dodajes projekte sa strane createNewProf
-    if (req.body?.tagovi) professor.tagovi = req.body.tagovi;
+    professor.tagovi = req.body.tagovi;
 
     const result = await professor.save();
     res.json(result);
@@ -103,7 +103,7 @@ const getProfessor = async (req, res) => {
     }
     const professor = await Professor.findOne({ _id: req.params.id }).exec().catch(console.error);
     if (!professor) {
-        return res.status(204).json({ "message": `No professor matches ID ${req.params.id}.` });
+        return res.status(404).json({ "message": `No professor matches ID ${req.params.id}.` });
     }
     res.json(professor);
 }

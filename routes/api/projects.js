@@ -10,7 +10,7 @@ router.route('/')
     .get(projectsController.getAllProjects)
     .post(fileUpload({ createParentPath: true }), verifyRoles(ROLES_LIST.Admin, ROLES_LIST.Editor), projectsController.createNewProject)
     .patch(verifyRoles(ROLES_LIST.Admin, ROLES_LIST.Editor), projectsController.updateProject)
-    .delete(verifyRoles(ROLES_LIST.Admin), projectsController.deleteProject);
+    .delete(verifyRoles(ROLES_LIST.Admin, ROLES_LIST.Editor), projectsController.deleteProject);
 
 router.route('/:id')
     .get(projectsController.getProject);

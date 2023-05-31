@@ -36,7 +36,7 @@ function fileExtensionLimiter(allowedExtArray, req, res) {
 
   if (!allowed) {
     const message = `Upload failed. Only ${allowedExtArray.toString()} files allowed.`.replaceAll(",", ", ");
-    res.status(422).json({ status: "error", message });
+    res.status(415).json({ status: "error", message });
     return false;
   }
   return true;
@@ -70,17 +70,17 @@ function fileSizeLimiter(req, res) {
   return true;
 }
 function hasDuplicateValues(array) {
-  if(Array.isArray(array)){
-      for (let i = 0; i < array.length; i++) {
-    for (let j = i + 1; j < array.length; j++) {
-      if (array[i] === array[j]) {
-        return true;
+  if (Array.isArray(array)) {
+    for (let i = 0; i < array.length; i++) {
+      for (let j = i + 1; j < array.length; j++) {
+        if (array[i] === array[j]) {
+          return true;
+        }
       }
     }
-  }
-  return false;
+    return false;
   } else return false;
-  
+
 }
 
 
@@ -109,8 +109,8 @@ const getAllAneksi = async (req, res) => {
 
       files.forEach((file) => {
         archive.file(file, { name: file.split('/').pop() });
-        
-      }); 
+
+      });
 
       await archive.finalize();
     } catch (error) {
@@ -121,7 +121,7 @@ const getAllAneksi = async (req, res) => {
 
 
   } else {
-    res.sendStatus(404).json({ 'message': `Projekat ${project._id} nema anekse ` })
+    res.status(410).json({ 'message': `Projekat ${project._id} nema anekse ` })
   }
 }
 
@@ -140,33 +140,35 @@ const createNewAneks = async (req, res) => {
     aneksiImena = req.files.filesAneksi.map(file => file.name);
     aneksiFajlovi = req.files.filesAneksi;
   } else if (req?.files?.filesAneksi) {
-    aneksiImena = req.files.filesAneksi.name;
+    aneksiImena = [req.files.filesAneksi.name];
     aneksiFajlovi = [req.files.filesAneksi];
   } else {
     console.log("req.files je :")
     console.log(req?.files);
-    return res.sendStatus(400).json({ 'message': 'Server nije primio fajl' })
+    return res.status(417).json({ 'message': 'Server nije primio fajl' })
   }
   if (aneksiImena.some(fajl => project.aneksi?.includes(fajl)) || hasDuplicateValues(aneksiImena)) {
-    return res.sendStatus(400).json({ 'message': 'Vec postoji fajl sa tim imenom' })
+    return res.status(409).json({ 'message': 'Vec postoji fajl sa tim imenom' })
   }
   if (!fileExtensionLimiter([".png", ".jpeg", ".txt", ".pdf", ".doc", ".docx", ".rtf", ".xls"], req, res)) return;
   if (!fileSizeLimiter(req, res)) return;
 
 
 
-  aneksiFajlovi.forEach(aneks => {
-    aneks.mv(`${parentDir}/uploads/projects/${req.params.id}/aneksi/${aneks.name}`, err => {
+  aneksiFajlovi.forEach(async (aneks) => {
+    await aneks.mv(`${parentDir}/uploads/projects/${req.params.id}/aneksi/${aneks.name}`, async (err) => {
       if (err) {
         console.error(err);
         return res.status(500).send(err);
       }
       console.log(`uspesno sacuvan ${aneks.name}`)
+
     });
   });
   project.aneksi = [...(project.aneksi ?? []), ...aneksiImena];
   const result = await project.save();
   res.json({ result });
+
 }
 
 const deleteAllAneksi = async (req, res) => {
@@ -181,13 +183,12 @@ const deleteAllAneksi = async (req, res) => {
     deleteFolderRecursive(`${parentDir}/uploads/projects/${project._id}/aneksi`);
     project.aneksi = [];
     const result = await project.save();
-    res.json(result);
-
+    res.json({ 'message': 'Uspesno ste obrisali' })
   } else {
-    res.sendStatus(404).json({ 'message': `Projekat ${project._id} nema anekse ` })
+    return res.status(410).json({ 'message': `Projekat ${project._id} nema anekse ` })
   }
 
-  return res.json({ 'message': 'Uspesno ste obrisali' })
+
 }
 
 const getAneks = async (req, res) => {
@@ -208,7 +209,7 @@ const getAneks = async (req, res) => {
 
   res.sendFile(req.params.name, options, function (err) {
     if (err) {
-      return res.sendStatus(500).json({ "message": "Greska pri nalazenju fajla aneksa" });
+      return res.status(500).json({ "message": "Greska pri nalazenju fajla aneksa" });
     } else {
       console.log('Sent:', req.params.name);
     }
@@ -227,14 +228,15 @@ const deleteAneks = async (req, res) => {
   if (!project) {
     return res.status(404).json({ "message": `No project matches ID ${req.params.id}.` });
   }
-  if (!project.aneksi.some(aneks => aneks.name == req.params.name)) {
+  console.log(project.aneksi)
+  if (!project.aneksi.some(aneks => aneks == req.params.name)) {
     return res.status(404).json({ "message": `No aneks matches name ${req.params.name}.` });
   }
 
   fs.unlink(`${parentDir}/uploads/projects/${req.params.id}/aneksi/${req.params.name}`, async (err) => {
     if (err) {
       console.error(err);
-      return res.sendStatus(400).json({ 'message': `Greska pri brisanju ${req.params.id}/aneksi/${req.params.name}` })
+      return res.status(500).json({ 'message': `Greska pri brisanju ${req.params.id}/aneksi/${req.params.name}` })
     }
     console.log(`File ${req.params.id}/aneksi/${req.params.name} has been deleted`);
     project.aneksi = project.aneksi.filter(aneks => aneks != req.params.name)
