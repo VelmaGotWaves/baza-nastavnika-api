@@ -167,7 +167,7 @@ const createNewAneks = async (req, res) => {
   });
   project.aneksi = [...(project.aneksi ?? []), ...aneksiImena];
   const result = await project.save();
-  res.json({ result });
+  res.json( result );
 
 }
 
@@ -241,7 +241,7 @@ const deleteAneks = async (req, res) => {
     console.log(`File ${req.params.id}/aneksi/${req.params.name} has been deleted`);
     project.aneksi = project.aneksi.filter(aneks => aneks != req.params.name)
     const result = await project.save();
-    return res.json({ result });
+    return res.json( result );
   })
 
 }
