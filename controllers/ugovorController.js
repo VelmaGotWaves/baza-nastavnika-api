@@ -150,7 +150,7 @@ const deleteUgovor = async (req, res) => {
       console.log(`File ${req.params.id}/ugovor/${project.ugovor} has been deleted`);
       project.ugovor = undefined;
       const result = await project.save();
-      return res.json({ result });
+      return res.json( result );
     })
   } else {
     return res.status(410).json({ "message": "Projekat nema ugovor za brisanje" })

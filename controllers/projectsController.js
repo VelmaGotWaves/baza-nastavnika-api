@@ -207,7 +207,7 @@ const createNewProject = async (req, res) => {
     );
 
     if (!req?.files) {
-        return res.json({ msg: 'No file uploaded', result });
+        return res.json( result );
     }
     if (req?.files?.fileUgovor) {
         const fileUgovor = req.files.fileUgovor;
