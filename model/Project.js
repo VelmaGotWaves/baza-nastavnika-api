@@ -9,9 +9,6 @@ const projectSchema = new Schema({
     vrstaProjekta:{
         type:String
     },
-    programFinansiranja:{
-        type:String
-    },
     nazivPrograma: {
         type: String
     },

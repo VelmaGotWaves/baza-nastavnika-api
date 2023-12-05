@@ -166,7 +166,6 @@ const createNewProject = async (req, res) => {
             nazivProjekta: req.body.nazivProjekta,
             nazivPrograma: req.body.nazivPrograma,
             vrstaProjekta: req.body.vrstaProjekta,
-            programFinansiranja: req.body.programFinansiranja,
             referentniBroj: req.body.referentniBroj,
             interniBroj: req.body.interniBroj,
             rukovodilac: chekiraniRukovodilac,
@@ -317,7 +316,6 @@ const updateProject = async (req, res) => {
     if (req.body?.nazivProjekta) project.nazivProjekta = req.body.nazivProjekta;
     /*if (req.body?.nazivPrograma)*/ project.nazivPrograma = req.body.nazivPrograma;
     if (req.body?.vrstaProjekta) project.vrstaProjekta = req.body.vrstaProjekta;
-    project.programFinansiranja = req.body.programFinansiranja;
     project.referentniBroj = req.body.referentniBroj;
     project.interniBroj = req.body.interniBroj;
     project.rukovodilac = chekiraniRukovodilac;

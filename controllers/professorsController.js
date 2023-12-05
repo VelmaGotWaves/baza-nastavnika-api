@@ -1,6 +1,7 @@
 const Professor = require('../model/Professor');
 const KATEDRE = require('../data/katedre');
 const OBLASTI_ISTRAZIVANJA = require('../data/oblastiIstrazivanja');
+const ZVANJA = require("../data/zvanja");
 const Project = require("../model/Project");
 var ObjectId = require('mongoose').Types.ObjectId;
 
@@ -14,11 +15,18 @@ const createNewProfessor = async (req, res) => {
     if (!req?.body?.ime || !req?.body?.prezime) {
         return res.status(400).json({ 'message': 'First and last names are required' });
     }
-    if (req?.body?.katedre.length != 0 && !req?.body?.katedre.every(val => KATEDRE.katedre.includes(val))) {
+    if (req.body?.katedre.length != 0 && !req?.body?.katedre.every(val => KATEDRE.katedre.includes(val))) {
         return res.status(400).json({ 'message': 'Greska pri unosu katedra' })
     }
-    if (req?.body?.oblastiIstrazivanja.length != 0 && !req?.body?.oblastiIstrazivanja.every(val => OBLASTI_ISTRAZIVANJA.oblastiIstrazivanja.includes(val))) {
+    if (req.body?.oblastiIstrazivanja.length != 0 && !req?.body?.oblastiIstrazivanja.every(val => OBLASTI_ISTRAZIVANJA.oblastiIstrazivanja.includes(val))) {
         return res.status(400).json({ 'message': 'Greska pri unosu oblasti istrazivanja' })
+    }
+    if (req.body?.zvanje && !ZVANJA.includes(req.body.zvanje)) {
+        return res.status(400).json({ 'message': 'Greska pri unosu zvanja' })
+    }
+    // sigurno ima bolje resenje ali...
+    if (!req.body?.pol && !["muski", "zenski"].includes(req.body.pol)) {
+        return res.status(400).json({ 'message': 'Greska pri unosu pola' })
     }
     //projekti: req.body.projekti, => ovo je trenutno obrisano, vrati ga kad budes hteo da dodajes projekte sa strane createNewProf
 
@@ -30,7 +38,10 @@ const createNewProfessor = async (req, res) => {
             oblastiIstrazivanja: req.body.oblastiIstrazivanja,
             katedre: req.body.katedre,
             publikacije: req.body.publikacije,
-            tagovi: req.body.tagovi
+            tagovi: req.body.tagovi,
+            pol:req.body.pol,
+            email:req.body.email,
+            zvanje:req.body.zvanje
         });
 
         res.status(201).json(result);
@@ -56,10 +67,21 @@ const updateProfessor = async (req, res) => {
     if (req?.body?.oblastiIstrazivanja.length != 0 && !req?.body?.oblastiIstrazivanja.every(val => OBLASTI_ISTRAZIVANJA.oblastiIstrazivanja.includes(val))) {
         return res.status(400).json({ 'message': 'Greska pri unosu oblasti istrazivanja' })
     }
+    if (req.body?.zvanje && !ZVANJA.includes(req.body.zvanje)) {
+        return res.status(400).json({ 'message': 'Greska pri unosu zvanja' })
+    }
+    // sigurno ima bolje resenje ali...
+    if (req.body?.pol && !["Muški", "Ženski"].includes(req.body.pol)) {
+        return res.status(400).json({ 'message': 'Greska pri unosu pola' })
+    }
     if (req.body?.ime) professor.ime = req.body.ime;
     if (req.body?.prezime) professor.prezime = req.body.prezime;
     if (req.body?.titula) professor.titula = req.body.titula;
+    if (req.body?.pol) professor.pol = req.body.pol;
+
     professor.oblastiIstrazivanja = req.body.oblastiIstrazivanja;
+    professor.email = req.body.email;
+    professor.zvanje = req.body.zvanje;
     professor.katedre = req.body.katedre;
     professor.publikacije = req.body.publikacije;
     // if (req.body?.projekti) professor.projekti = req.body.projekti; ovo je trenutno obrisano, vrati ga kad budes hteo da dodajes projekte sa strane createNewProf

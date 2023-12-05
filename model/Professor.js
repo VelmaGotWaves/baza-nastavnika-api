@@ -35,7 +35,17 @@ const professorSchema = new Schema({
     }],
     tagovi: [{
         type: String
-    }]
+    }],
+    pol:{
+        type: String,
+        required: true
+    },
+    email:{
+        type: String,
+    },
+    zvanje:{
+        type:String,
+    }
 });
 
 module.exports = mongoose.model('Professor', professorSchema);
